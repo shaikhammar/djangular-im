@@ -1,0 +1,66 @@
+image: gitpod/workspace-mysql
+
+tasks:
+  - name: Django Project
+    init: |
+      # Install Django and upgrade some dependencies
+      pip install --upgrade pip wheel setuptools
+      pip install Django
+      # pip install djangorestframework
+      # pip install markdown       # Markdown support for the browsable API.
+      # pip install django-filter
+      
+      # Init Django project
+      name="backend"
+      if test ! -e "${name}"; then {
+        django-admin startproject "${name}" .
+      } fi
+
+      # Modify settings.py to include Gitpod port hosts
+      settings="${name}/settings.py"
+      if test -e "${settings}" && ! grep -q 'GITPOD_WORKSPACE_URL' "${settings}" 2>/dev/null; then {
+        cat >> "${settings}" << 'SCRIPT'
+
+      if __import__('os').environ.get('GITPOD_WORKSPACE_URL'):
+          try:
+              gp = __import__('subprocess').run(["gp", "url", "8000"], capture_output=True, text=True)
+              if gp.returncode == 0 and gp.stdout:
+                  ALLOWED_HOSTS += [gp.stdout.strip().split('//', 1)[-1]]
+          except:
+              ALLOWED_HOSTS += ['*']
+      
+      SCRIPT
+      } fi
+
+      if test -e requirements.txt; then {
+        pip install -r requirements.txt
+      } fi
+
+      python manage.py migrate
+    command: |
+      python manage.py runserver
+  - name: Angular
+    before: |
+      npm install -g @angular/cli
+    init: |
+      # Init Angular project 
+      name="frontend"
+      if test ! -e "${name}"; then {
+        ng new "${name}" --routing --defaults
+      } fi
+    command: |
+      cd frontend
+      # Install Angular CLI
+      npm install
+      ng serve --open
+ports:
+  - port: 8000
+
+  - port: 3306
+
+  - port: 4200
+    onOpen: open-preview
+
+vscode:
+  extensions:
+    - ms-python.python
